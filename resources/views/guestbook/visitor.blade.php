@@ -21,10 +21,10 @@
             <x-text-field name="name" label="Nama lengkap" required
                           placeholder="Sesuai KTP" />
 
-            <x-text-field name="phone" label="Nomor HP" type="tel"
+            <x-text-field name="phone" label="Nomor HP" type="tel" required
                           placeholder="08xxxxxxxxxx" />
 
-            <x-text-field name="host_name" label="Menemui siapa / rumah nomor berapa"
+            <x-text-field name="host_name" label="Menemui siapa / rumah nomor berapa" required
                           placeholder="Contoh: Pak Andi, Blok C2 No. 5" />
 
             <x-text-field name="purpose" label="Keperluan" required rows="3"

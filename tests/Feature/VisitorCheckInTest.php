@@ -65,10 +65,7 @@ class VisitorCheckInTest extends TestCase
         // Sengaja mengikuti redirect: kalau hanya assertRedirect, halaman tujuannya
         // tidak pernah benar-benar dirender sehingga error Blade di sana lolos.
         $this->followingRedirects()
-            ->post(route('visitors.store'), [
-                ...$this->validPayload(),
-                'host_name' => 'Pak Andi, Blok C2',
-            ])
+            ->post(route('visitors.store'), $this->validPayload())
             ->assertOk()
             ->assertSee('Tunjukkan ini ke security', false)
             ->assertSee('dihampiri pemilik rumah', false)
@@ -182,9 +179,30 @@ class VisitorCheckInTest extends TestCase
     public function test_semua_field_wajib_divalidasi(): void
     {
         $this->post(route('visitors.store'), [])
-            ->assertSessionHasErrors(['name', 'purpose', 'ktp', 'selfie']);
+            ->assertSessionHasErrors(['name', 'phone', 'host_name', 'purpose', 'ktp', 'selfie']);
 
         $this->assertSame(0, Visitor::count());
+    }
+
+    public function test_nomor_hp_dan_tujuan_wajib_diisi(): void
+    {
+        // Keduanya dipakai pengurus untuk menghubungi tamu dan memastikan
+        // kedatangannya memang ditunggu, jadi tidak boleh kosong.
+        $this->post(route('visitors.store'), [
+            ...$this->validPayload(),
+            'phone' => '',
+            'host_name' => '',
+        ])->assertSessionHasErrors(['phone', 'host_name']);
+
+        $this->assertSame(0, Visitor::count());
+    }
+
+    public function test_nomor_hp_harus_berupa_angka(): void
+    {
+        $this->post(route('visitors.store'), [
+            ...$this->validPayload(),
+            'phone' => 'nanti saja',
+        ])->assertSessionHasErrors('phone');
     }
 
     public function test_file_bukan_gambar_ditolak(): void
@@ -215,6 +233,8 @@ class VisitorCheckInTest extends TestCase
     {
         return [
             'name' => 'Budi Santoso',
+            'phone' => '081234567890',
+            'host_name' => 'Pak Andi, Blok C2',
             'purpose' => 'Silaturahmi keluarga',
             'ktp' => UploadedFile::fake()->image('ktp.jpg', 1200, 800),
             'selfie' => UploadedFile::fake()->image('selfie.jpg', 800, 1000),

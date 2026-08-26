@@ -34,7 +34,10 @@ WORKDIR /var/www/html
 
 # HOME yang bisa ditulis: composer, dan psysh (php artisan tinker) menaruh cache di sini.
 ENV HOME=/var/www
-RUN mkdir -p /var/www/.composer /var/www/.config     && chown -R www-data:www-data /var/www/.composer /var/www/.config /var/www/html
+# vendor/ dibuat di sini supaya named volume yang dipasang di atasnya (lihat
+# docker-compose.yml) mewarisi kepemilikan www-data, bukan root.
+RUN mkdir -p /var/www/.composer /var/www/.config /var/www/html/vendor \
+    && chown -R www-data:www-data /var/www/.composer /var/www/.config /var/www/html
 
 USER www-data
 

@@ -22,8 +22,8 @@ class StoreVisitorRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'min:3', 'max:120'],
-            'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\-\s()]+$/'],
-            'host_name' => ['nullable', 'string', 'max:120'],
+            'phone' => ['required', 'string', 'min:8', 'max:30', 'regex:/^[0-9+\-\s()]+$/'],
+            'host_name' => ['required', 'string', 'min:3', 'max:120'],
             'purpose' => ['required', 'string', 'min:5', 'max:500'],
             'ktp' => ['required', $this->photoRule()],
             'selfie' => ['required', $this->photoRule()],
@@ -66,7 +66,10 @@ class StoreVisitorRequest extends FormRequest
             'required' => ':attribute wajib diisi.',
             'ktp.required' => 'Foto KTP wajib diunggah.',
             'selfie.required' => 'Foto selfie wajib diambil.',
+            'phone.required' => 'Nomor HP wajib diisi agar pengurus bisa menghubungi Anda.',
             'phone.regex' => 'Nomor HP hanya boleh berisi angka, spasi, dan tanda + - ( ).',
+            'phone.min' => 'Nomor HP sepertinya kurang lengkap.',
+            'host_name.required' => 'Isi nama penghuni atau nomor rumah yang Anda tuju.',
             'purpose.min' => 'Tuliskan keperluan Anda sedikit lebih jelas.',
             'website.prohibited' => 'Pengisian terdeteksi tidak wajar. Silakan ulangi.',
         ];

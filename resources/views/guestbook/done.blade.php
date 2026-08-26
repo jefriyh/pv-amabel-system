@@ -64,13 +64,21 @@
 
                 <div class="grid grid-cols-2 gap-3 p-5">
                     @foreach ($receipt['photos'] as $field => $label)
+                        @php $src = route('guestbook.receipt-photo', ['field' => $field]) @endphp
+
                         <figure class="space-y-1.5">
-                            <img src="{{ route('guestbook.receipt-photo', ['field' => $field]) }}"
-                                 alt="{{ $label }}"
-                                 loading="lazy"
-                                 class="aspect-4/3 w-full rounded-lg bg-slate-100 object-cover ring-1 ring-slate-200">
+                            {{-- object-contain, bukan object-cover: KTP yang mendatar dan
+                                 selfie yang menegak harus sama-sama terlihat utuh. Kalau
+                                 dipangkas, justru wajah atau nomor NIK yang hilang.
+                                 Sengaja tanpa loading="lazy" — hanya ada dua foto dan
+                                 keduanya yang ingin dilihat satpam. --}}
+                            <a href="{{ $src }}" target="_blank" rel="noopener"
+                               class="block rounded-lg ring-1 ring-slate-200">
+                                <img src="{{ $src }}" alt="{{ $label }}"
+                                     class="h-40 w-full rounded-lg bg-slate-100 object-contain">
+                            </a>
                             <figcaption class="text-center text-xs font-medium text-slate-500">
-                                {{ $label }}
+                                {{ $label }} <span class="text-slate-400">&middot; ketuk untuk perbesar</span>
                             </figcaption>
                         </figure>
                     @endforeach

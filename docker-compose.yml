@@ -11,6 +11,12 @@ services:
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
+      # vendor/ berisi ~23 ribu file. Lewat bind mount Docker Desktop (Windows/macOS)
+      # opcache butuh berdetik-detik hanya untuk memeriksa ulang seluruhnya, sehingga
+      # setiap request jadi lambat. Ditaruh di named volume agar dibaca dari filesystem
+      # container yang cepat. Konsekuensinya `composer install` harus dijalankan lewat
+      # container (lihat README), bukan dari host.
+      - vendor-data:/var/www/html/vendor
     depends_on:
       mysql:
         condition: service_healthy
@@ -54,6 +60,7 @@ services:
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
+      - vendor-data:/var/www/html/vendor
     # Notifikasi Telegram dikirim langsung saat submit, bukan lewat antrean.
     # Worker ini tetap diperlukan untuk export CSV/Excel di dashboard Filament.
     command: php artisan queue:work --tries=3 --backoff=10 --sleep=3 --max-time=3600
@@ -69,6 +76,7 @@ services:
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
+      - vendor-data:/var/www/html/vendor
     command: php artisan schedule:work
     depends_on:
       app:
@@ -91,3 +99,4 @@ services:
 
 volumes:
   mysql-data:
+  vendor-data:

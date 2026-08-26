@@ -19,7 +19,8 @@ Dibangun dengan Laravel 13, MySQL 8.4, dan Filament 5. Semuanya berjalan di Dock
 4. [Perintah yang tersedia](#perintah-yang-tersedia)
 5. [Deploy ke server](#deploy-ke-server)
 6. [Privasi data KTP](#privasi-data-ktp)
-7. [Struktur proyek](#struktur-proyek)
+7. [Catatan teknis](#catatan-teknis)
+8. [Struktur proyek](#struktur-proyek)
 
 ---
 
@@ -43,7 +44,7 @@ docker compose build
 ```
 
 ```bash
-docker compose run --rm --no-deps app composer install
+docker compose run --rm app sh -c "composer install"
 ```
 
 ```bash
@@ -178,7 +179,7 @@ TELEGRAM_THREAD_ID=
 Lalu:
 
 ```bash
-docker compose restart app queue
+docker compose restart app
 ```
 
 ```bash
@@ -237,7 +238,14 @@ HTTPS_PROXY=http://user:pass@proxy-anda:8080
 1. Scan QR di gerbang, atau satpam membukakan halamannya di tablet.
 2. Pilih "Saya Tamu" atau "Saya Antar Paket".
 3. Isi data, ambil foto (kamera HP terbuka langsung), tekan kirim.
-4. Notifikasi masuk ke grup Telegram dalam hitungan detik.
+4. Notifikasi langsung masuk ke grup Telegram.
+5. Layar tamu berganti menjadi **kartu bukti** berisi identitas dan kedua fotonya,
+   dengan instruksi besar: *tunjukkan ini ke security, atau tunggu hingga dihampiri
+   pemilik rumah*. Foto bisa diketuk untuk diperbesar agar satpam dapat mencocokkan
+   wajah dengan KTP.
+
+Kartu bukti itu hanya bisa dibuka dari HP yang mengisi formulir, dan hilang saat sesi
+browsernya berakhir. Tamu berikutnya tidak bisa melihat kartu tamu sebelumnya.
 
 Buat QR untuk dicetak:
 
@@ -329,7 +337,9 @@ dipakai sungguhan.
 Foto KTP adalah data pribadi. Yang sudah dibangun untuk menjaganya:
 
 - Foto disimpan di `storage/app/private/`, **di luar** folder yang bisa diakses web.
-  Satu-satunya jalan keluarnya adalah route `/admin/media/...` yang mewajibkan login.
+  Jalan keluarnya hanya dua, keduanya berpagar: route `/admin/media/...` yang mewajibkan
+  login, dan route `/selesai/foto/...` yang hanya melayani foto milik session yang
+  sedang membukanya, sehingga tamu tidak bisa mengintip foto tamu lain.
 - Metadata EXIF, termasuk koordinat GPS dari kamera HP, dibuang saat foto diproses ulang.
 - Foto **tidak pernah dikirim ke grup Telegram**, hanya tautannya.
 - Export CSV/Excel berisi tautan, bukan file foto.
@@ -349,6 +359,61 @@ Foto KTP adalah data pribadi. Yang sudah dibangun untuk menjaganya:
 
 ---
 
+## Catatan teknis
+
+### Foto selalu dikompres di server
+
+Tidak ada berkas unggahan yang disimpan apa adanya. Semuanya melewati
+`App\Services\PhotoStorageService` dan selalu mengalami hal yang sama:
+
+| Langkah | Hasil |
+|---|---|
+| Diperkecil | sisi terpanjang maksimal 1600 px |
+| Di-encode ulang | JPEG progresif, kualitas 80 |
+| Metadata dibuang | EXIF, termasuk koordinat GPS |
+
+Foto kamera HP 3–8 MB biasanya menyusut menjadi sekitar 25–60 KB. Browser memang sudah
+memperkecil foto sebelum mengunggah, tapi itu semata optimasi kecepatan dan bisa saja
+tidak berjalan (JavaScript mati, browser lawas, atau kiriman dibuat manual) — jadi
+server tidak menggantungkan ukuran penyimpanannya pada itikad baik klien.
+
+Batasnya bisa diubah di `config/guestbook.php`, dan jaminannya dikunci oleh
+`tests/Feature/PhotoCompressionTest.php`.
+
+### Notifikasi Telegram dikirim langsung
+
+Pesan dikirim saat itu juga ketika tamu menekan kirim, bukan lewat antrean, supaya
+satpam menerimanya pada detik yang sama. Konsekuensinya tamu ikut menunggu jawaban
+Telegram — sekitar 0,6 detik pada jaringan sehat, dari total submit ±1,5 detik.
+
+Kegagalan Telegram **tidak pernah menggagalkan submit**: data tamu sudah tersimpan, tamu
+tetap melihat kartu buktinya, dan errornya masuk ke `storage/logs/laravel.log`. Karena
+tidak ada antrean, notifikasi yang gagal **tidak dicoba ulang belakangan** — hanya ada
+satu percobaan ulang seketika. Kalau grup Telegram sepi padahal ada tamu masuk, periksa
+log dan cocokkan dengan daftar di dashboard.
+
+Container `queue` tetap dijalankan karena fitur export CSV/Excel di dashboard memakainya.
+
+### vendor/ berada di named volume
+
+`vendor/` berisi lebih dari 23 ribu berkas. Lewat bind mount Docker Desktop di Windows
+dan macOS, sekadar memeriksa seluruhnya butuh berdetik-detik, dan opcache melakukannya
+berkala sehingga hampir setiap request jadi lambat — terukur 5,5 detik per halaman.
+Karena itu `vendor/` dipasang sebagai named volume (`vendor-data`), dibaca dari
+filesystem container yang cepat. Halaman yang sama kini terbuka dalam 0,2 detik.
+
+Konsekuensinya, dependensi PHP dipasang **lewat container**, bukan dari host:
+
+```bash
+docker compose run --rm app sh -c "composer require nama/paket"
+```
+
+Folder `vendor/` di host tidak ikut terisi. Kalau editor Anda membutuhkannya untuk
+autocomplete, jalankan `composer install` sekali di host — salinan itu hanya dipakai
+editor dan tidak memengaruhi container.
+
+---
+
 ## Struktur proyek
 
 ```
@@ -356,10 +421,9 @@ app/
   Console/Commands/     telegram:test, guestbook:qr, guestbook:purge-photos
   Filament/             dashboard admin (resource Tamu & Paket, widget, exporter)
   Http/Controllers/     form publik + route foto ber-auth
-  Jobs/                 pengiriman notifikasi Telegram lewat antrean
   Models/               Visitor, PackageDelivery
   Services/             PhotoStorageService, TelegramNotifier
-  Support/              penyusun teks pesan Telegram
+  Support/              penyusun teks pesan Telegram, pemetaan tipe entri
 config/
   guestbook.php         retensi foto, ukuran foto, daftar ekspedisi, nama komplek
   telegram.php          token, chat_id, thread_id
