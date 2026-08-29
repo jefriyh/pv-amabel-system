@@ -159,7 +159,7 @@ class SecurityAttendance extends Model
 
     public function getWhatsAppUrlAttribute(): string
     {
-        return 'https://api.whatsapp.com/send?text=' . urlencode($this->whatsapp_text);
+        return 'https://wa.me/?text=' . rawurlencode($this->whatsapp_text);
     }
 
     public static function photoFields(): array

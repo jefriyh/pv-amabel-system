@@ -4,7 +4,7 @@
     {{-- Modal Popup Sukses & Ringkasan Presensi --}}
     @if ($showSuccessModal && $createdAttendance)
         @php
-            $selfieSrc = $createdAttendance->selfie_url;
+            $selfieSrc = $createdAttendance->selfie_data_url ?? $createdAttendance->selfie_url;
         @endphp
 
         <div

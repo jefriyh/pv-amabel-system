@@ -171,12 +171,17 @@ class AdminPanelProvider extends PanelProvider
                             const originalText = btnText ? btnText.innerText : "";
                             if (btn && btnText) {
                                 btn.disabled = true;
-                                btnText.innerText = "Mengambil Screenshot...";
+                                btnText.innerText = "Membuat Gambar Screenshot...";
                             }
+
+                            const safeWaUrl = waUrl || ("https://wa.me/?text=" + encodeURIComponent(textCaption || ""));
 
                             try {
                                 const card = document.getElementById(cardId);
-                                if (!card) throw new Error("Card element not found: " + cardId);
+                                if (!card) {
+                                    window.location.href = safeWaUrl;
+                                    return;
+                                }
 
                                 if (typeof html2canvas === "undefined") {
                                     await new Promise((resolve, reject) => {
@@ -191,14 +196,14 @@ class AdminPanelProvider extends PanelProvider
                                 const canvas = await html2canvas(card, {
                                     scale: 2,
                                     useCORS: true,
-                                    allowTaint: false,
+                                    allowTaint: true,
                                     backgroundColor: "#ffffff",
                                     logging: false
                                 });
 
                                 canvas.toBlob(async (blob) => {
                                     if (!blob) {
-                                        window.open(waUrl, "_blank");
+                                        window.location.href = safeWaUrl;
                                         if (btn && btnText) {
                                             btnText.innerText = originalText;
                                             btn.disabled = false;
@@ -206,15 +211,15 @@ class AdminPanelProvider extends PanelProvider
                                         return;
                                     }
 
-                                    const fileName = "Presensi-Security-" + (new Date().toISOString().slice(0, 10)) + ".png";
-                                    const file = new File([blob], fileName, { type: "image/png" });
+                                    const fileName = "Presensi-Security-" + (new Date().toISOString().slice(0, 10)) + ".jpg";
+                                    const file = new File([blob], fileName, { type: "image/jpeg" });
 
-                                    // 1. Web Share API (HP Android/iOS)
+                                    // 1. Web Share API: Langsung kirim file gambar ke WhatsApp pada HP
                                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                                         try {
                                             await navigator.share({
                                                 files: [file],
-                                                title: "Presensi Kehadiran Security",
+                                                title: "Presensi Security Villa Amabel",
                                                 text: textCaption
                                             });
                                             if (btn && btnText) {
@@ -230,20 +235,21 @@ class AdminPanelProvider extends PanelProvider
                                                 }
                                                 return;
                                             }
-                                            console.warn("Web Share failed, fallback to clipboard", shareErr);
+                                            console.warn("Web Share files failed, fallback to download & direct link", shareErr);
                                         }
                                     }
 
-                                    // 2. Fallback Clipboard & Auto Download
+                                    // 2. Fallback untuk Desktop/Browser yang tidak mendukung share file:
+                                    // Salin ke clipboard & simpan ke galeri/download
                                     let copied = false;
                                     if (navigator.clipboard && window.ClipboardItem) {
                                         try {
                                             await navigator.clipboard.write([
-                                                new ClipboardItem({ "image/png": blob })
+                                                new ClipboardItem({ "image/jpeg": blob })
                                             ]);
                                             copied = true;
                                         } catch (clipErr) {
-                                            console.warn("Clipboard write failed", clipErr);
+                                            console.warn("Clipboard skipped:", clipErr);
                                         }
                                     }
 
@@ -253,18 +259,19 @@ class AdminPanelProvider extends PanelProvider
                                         downloadLink.href = URL.createObjectURL(blob);
                                         downloadLink.click();
                                     } catch (dlErr) {
-                                        console.warn("Download failed", dlErr);
+                                        console.warn("Download skipped:", dlErr);
                                     }
 
-                                    // Buka chat WhatsApp
-                                    window.open(waUrl, "_blank");
+                                    setTimeout(() => {
+                                        window.location.href = safeWaUrl;
+                                    }, 400);
 
                                     if (alertBox) {
                                         alertBox.style.display = "block";
                                         if (copied) {
-                                            alertBox.innerText = "✅ Gambar screenshot disalin ke clipboard! Langsung Paste (Ctrl+V) di chat WhatsApp.";
+                                            alertBox.innerText = "✅ Gambar disalin ke clipboard & disimpan di galeri! Silakan tempel (Paste) di chat WhatsApp.";
                                         } else {
-                                            alertBox.innerText = "✅ Gambar screenshot berhasil diunduh! Silakan lampirkan gambar di chat WhatsApp.";
+                                            alertBox.innerText = "✅ Gambar berhasil disimpan di galeri & pesan dibuka di WhatsApp.";
                                         }
                                     }
 
@@ -272,11 +279,11 @@ class AdminPanelProvider extends PanelProvider
                                         btnText.innerText = originalText;
                                         btn.disabled = false;
                                     }
-                                }, "image/png");
+                                }, "image/jpeg", 0.92);
 
                             } catch (err) {
-                                console.error("Failed capturing screenshot", err);
-                                window.open(waUrl, "_blank");
+                                console.error("Screenshot error, opening direct WhatsApp URL:", err);
+                                window.location.href = safeWaUrl;
                                 if (btn && btnText) {
                                     btnText.innerText = originalText;
                                     btn.disabled = false;

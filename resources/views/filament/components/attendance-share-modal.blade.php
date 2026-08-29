@@ -1,5 +1,5 @@
 @php
-    $selfieSrc = $record->selfie_url;
+    $selfieSrc = $record->selfie_data_url ?? $record->selfie_url;
     $cardId = 'attendance-share-card-' . $record->id;
     $btnId = 'btn-share-wa-' . $record->id;
     $btnTextId = 'btn-share-text-' . $record->id;
