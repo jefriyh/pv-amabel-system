@@ -30,3 +30,9 @@ Thumbs.db
 /storage/app/private/visitors
 /storage/app/private/packages
 /storage/app/private/qr
+
+# Deployment artifacts
+/deploy
+/deploy/
+/deploy.zip
+
