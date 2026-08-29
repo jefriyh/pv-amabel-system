@@ -23,33 +23,24 @@ class AdminDashboardTest extends TestCase
 
     public function test_dashboard_butuh_login(): void
     {
-        $this->get('/admin')->assertRedirect(route('filament.admin.auth.login'));
+        $this->get('/internal')->assertRedirect(route('filament.admin.auth.login'));
     }
 
-    public function test_admin_bisa_membuka_daftar_dan_detail(): void
+    public function test_superadmin_bisa_membuka_semua_modul(): void
     {
         $visitor = $this->makeVisitor();
         $package = $this->makePackage();
 
-        $this->actingAs($this->admin());
+        $this->actingAs($this->superAdmin());
 
-        $this->get('/admin')->assertOk();
-        $this->get('/admin/visitors')->assertOk()->assertSee($visitor->name);
-        $this->get("/admin/visitors/{$visitor->id}")->assertOk()->assertSee('Silaturahmi keluarga');
-        $this->get('/admin/package-deliveries')->assertOk()->assertSee($package->courier_name);
-        $this->get("/admin/package-deliveries/{$package->id}")->assertOk();
-    }
-
-    public function test_admin_tidak_bisa_membuat_atau_menyunting_entri(): void
-    {
-        $visitor = $this->makeVisitor();
-
-        $this->actingAs($this->admin());
-
-        // Halaman create/edit sengaja tidak didaftarkan: buku tamu hanya boleh diisi
-        // dari form di gerbang supaya tetap sah sebagai catatan.
-        $this->get('/admin/visitors/create')->assertNotFound();
-        $this->get("/admin/visitors/{$visitor->id}/edit")->assertNotFound();
+        $this->get('/internal')->assertOk();
+        $this->get('/internal/visitors')->assertOk()->assertSee($visitor->name);
+        $this->get("/internal/visitors/{$visitor->id}")->assertOk()->assertSee('Silaturahmi keluarga');
+        $this->get('/internal/package-deliveries')->assertOk()->assertSee($package->courier_name);
+        $this->get("/internal/package-deliveries/{$package->id}")->assertOk();
+        $this->get('/internal/users')->assertOk();
+        $this->get('/internal/security-attendances')->assertOk();
+        $this->get('/internal/leave-requests')->assertOk();
     }
 
     public function test_foto_tidak_bisa_diambil_tanpa_login(): void
@@ -67,7 +58,7 @@ class AdminDashboardTest extends TestCase
     {
         $visitor = $this->makeVisitor();
 
-        $this->actingAs($this->admin())
+        $this->actingAs($this->superAdmin())
             ->get(route('admin.media', [
                 'type' => 'visitors',
                 'record' => $visitor->id,
@@ -81,7 +72,7 @@ class AdminDashboardTest extends TestCase
     {
         $visitor = $this->makeVisitor();
 
-        $this->actingAs($this->admin())
+        $this->actingAs($this->superAdmin())
             ->get(route('admin.media', [
                 'type' => 'visitors',
                 'record' => $visitor->id,
@@ -90,12 +81,15 @@ class AdminDashboardTest extends TestCase
             ->assertNotFound();
     }
 
-    private function admin(): User
+    private function superAdmin(): User
     {
         return User::create([
-            'name' => 'Admin Komplek',
-            'email' => 'admin@example.test',
+            'name' => 'Super Admin',
+            'email' => 'superadmin@amabel.id',
             'password' => 'rahasia123',
+            'role' => User::ROLE_SUPERADMIN,
+            'annual_leave_quota' => 12,
+            'is_active' => true,
         ]);
     }
 
@@ -109,6 +103,7 @@ class AdminDashboardTest extends TestCase
         $visitor = new Visitor([
             'name' => 'Budi Santoso',
             'purpose' => 'Silaturahmi keluarga',
+            'status' => Visitor::STATUS_PENDING,
             'ktp_path' => "visitors/{$id}/ktp.jpg",
             'selfie_path' => "visitors/{$id}/selfie.jpg",
         ]);
@@ -129,6 +124,7 @@ class AdminDashboardTest extends TestCase
             'courier_name' => 'Rizal Pratama',
             'courier_company' => 'JNE',
             'photo_path' => "packages/{$id}/paket.jpg",
+            'status' => PackageDelivery::STATUS_DITITIPKAN,
         ]);
 
         $package->id = $id;

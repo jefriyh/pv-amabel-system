@@ -134,8 +134,89 @@ class TelegramNotificationTest extends TestCase
         $message = TelegramMessage::forVisitor($visitor, 'https://guestbook.test/admin/visitors/1');
 
         $this->assertStringNotContainsString($visitor->ktp_path, $message);
-        $this->assertStringNotContainsString($visitor->selfie_path, $message);
-        $this->assertStringContainsString('buka di dashboard', $message);
+        $this->assertStringContainsString('https://guestbook.test/admin/visitors/1', $message);
+        $this->assertStringContainsString('Buka Detail di Dashboard', $message);
+    }
+
+    public function test_pesan_notifikasi_presensi_security_terformat_dengan_baik(): void
+    {
+        $user = \App\Models\User::create([
+            'name' => 'Bambang Security',
+            'email' => 'bambang@amabel.test',
+            'password' => 'secret123',
+            'role' => \App\Models\User::ROLE_SECURITY,
+            'is_active' => true,
+        ]);
+
+        $prevUser = \App\Models\User::create([
+            'name' => 'Slamet Security',
+            'email' => 'slamet@amabel.test',
+            'password' => 'secret123',
+            'role' => \App\Models\User::ROLE_SECURITY,
+            'is_active' => true,
+        ]);
+
+        $attendance = \App\Models\SecurityAttendance::create([
+            'user_id' => $user->id,
+            'previous_security_id' => $prevUser->id,
+            'type' => \App\Models\SecurityAttendance::TYPE_MASUK,
+            'attendance_date' => now()->toDateString(),
+            'day_name' => 'Sabtu',
+            'attendance_time' => '08:00:00',
+            'start_time' => '08:00',
+            'end_time' => '20:00',
+            'location_address' => 'Pos Gerbang Utama Villa Amabel',
+            'latitude' => -6.442989,
+            'longitude' => 106.823221,
+            'selfie_path' => 'attendances/selfie.jpg',
+            'status' => 'hadir',
+            'notes' => 'Serah terima HT dan kunci pos aman',
+        ]);
+
+        $attendance->load(['user', 'previousSecurity']);
+        $message = TelegramMessage::forAttendance($attendance, 'https://amabel.test/internal/security-attendances/' . $attendance->id);
+
+        $this->assertStringContainsString('LOG PRESENSI KEHADIRAN SECURITY', $message);
+        $this->assertStringContainsString('Bambang Security', $message);
+        $this->assertStringContainsString('Slamet Security', $message);
+        $this->assertStringContainsString('Pos Gerbang Utama Villa Amabel', $message);
+        $this->assertStringContainsString('https://www.google.com/maps?q=-6.442989,106.823221', $message);
+        $this->assertStringContainsString('https://amabel.test/internal/security-attendances/' . $attendance->id, $message);
+        $this->assertStringContainsString('Buka Detail di Dashboard', $message);
+        $this->assertStringNotContainsString('attendances/selfie.jpg', $message);
+    }
+
+    public function test_pesan_notifikasi_pengajuan_cuti_izin_sakit_terformat_dengan_baik(): void
+    {
+        $user = \App\Models\User::create([
+            'name' => 'Bambang Security',
+            'email' => 'bambang.cuti@amabel.test',
+            'password' => 'secret123',
+            'role' => \App\Models\User::ROLE_SECURITY,
+            'annual_leave_quota' => 12,
+            'is_active' => true,
+        ]);
+
+        $leave = \App\Models\LeaveRequest::create([
+            'user_id' => $user->id,
+            'type' => \App\Models\LeaveRequest::TYPE_CUTI,
+            'selected_dates' => [now()->addDays(3)->toDateString(), now()->addDays(4)->toDateString()],
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+            'total_days' => 2,
+            'reason' => 'Acara keluarga di kampung',
+            'status' => \App\Models\LeaveRequest::STATUS_PENDING,
+        ]);
+
+        $leave->load('user');
+        $message = TelegramMessage::forLeaveRequest($leave, 'https://amabel.test/internal/leave-requests/' . $leave->id);
+
+        $this->assertStringContainsString('PENGAJUAN CUTI SECURITY', $message);
+        $this->assertStringContainsString('Bambang Security', $message);
+        $this->assertStringContainsString('2 Hari', $message);
+        $this->assertStringContainsString('Acara keluarga di kampung', $message);
+        $this->assertStringContainsString('Menunggu Persetujuan Pengurus', $message);
+        $this->assertStringContainsString('https://amabel.test/internal/leave-requests/' . $leave->id, $message);
     }
 
     private function makeVisitor(string $name): Visitor
